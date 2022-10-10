@@ -4,8 +4,9 @@ from ibapi.client import EClient
 from ibapi.wrapper import EWrapper
 from ibapi.order import Order
 from ibapi.contract import Contract
+from threading import Timer
 
-class TradingApp(EWrapper, EClient):
+class TestApp(EWrapper, EClient):
     
     def __init__(self):
         EWrapper.__init__(self)
@@ -17,4 +18,39 @@ class TradingApp(EWrapper, EClient):
         '{errorString}'
         print(error_message)
 
-app = TradingApp()
+    def nextValidId(self, orderId):
+        self.nextOrderId = orderId
+        self.start()
+
+    def start(self):
+        contract = Contract()
+        contract.symbol = 'FUN'
+        contract.secType = 'STK'
+        contract.exchange = 'SMART'
+        contract.currency = 'USD'
+        contract.primaryExchange = 'NASDAQ'
+
+        order = Order()
+        order.action = 'BUY'
+        order.totalQuantity = 200
+        order.orderType = 'LMT'
+        order.lmtPrice = 1.11 
+
+        self.placeOrder(self.nextOrderId, contract, order)
+
+    def stop(self):
+        self.done = True
+        self.disconnect()
+
+def main():
+    try:
+        app = TestApp()
+        app.connect('192.168.1.167', 7497, clientId=0)
+        print(f'{app.serverVersion()} --- {app.twsConnectionTime()}')
+        Timer(3, app.stop).start()
+        app.run()
+    except Exception as err:
+        print(err)
+
+if __name__ == "__main__":
+    main()
