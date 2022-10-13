@@ -14,13 +14,20 @@ class TestApp(EWrapper, EClient):
 
     def error(self, reqId: int, errorCode: int, errorString: str):
         super().error(reqId, errorCode, errorString)
-        error_message = f'Error id: {reqId}, Error code: {errorCode}, Msg:' + \
-        '{errorString}'
+        error_message = f'Error id: {reqId}, Error code: {errorCode}, '\
+                + f'Msg: {errorString}'
         print(error_message)
 
     def nextValidId(self, orderId):
         self.nextOrderId = orderId
         self.start()
+
+    def contractDetails(self, reqId, contractDetails):
+        """Receives the full contract's definitions. This method will return all
+        contracts matching the requested via EEClientSocket::reqContractDetails.
+        For example, one can obtain the whole option chain with it."""
+        super().contractDetails(reqId, contractDetails)
+        print(f"reqID: {reqId}, contract: {contractDetails}")
 
     def start(self):
         contract = Contract()
@@ -36,16 +43,17 @@ class TestApp(EWrapper, EClient):
         order.orderType = 'LMT'
         order.lmtPrice = 1.11 
 
-        self.placeOrder(self.nextOrderId, contract, order)
+        self.reqContractDetails(1, contract)
 
     def stop(self):
         self.done = True
         self.disconnect()
 
+
 def main():
     try:
         app = TestApp()
-        app.connect('192.168.1.167', 7497, clientId=0)
+        app.connect('192.168.1.127', 7497, clientId=0)
         print(f'{app.serverVersion()} --- {app.twsConnectionTime()}')
         Timer(3, app.stop).start()
         app.run()
