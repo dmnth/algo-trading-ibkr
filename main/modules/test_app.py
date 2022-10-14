@@ -6,6 +6,10 @@ from ibapi.order import Order
 from ibapi.contract import Contract
 from threading import Timer
 
+#TODO: where contract.description gets assigned at 
+# and why is it present in docks but Contract class
+# has no attribute with this name.
+
 class TestApp(EWrapper, EClient):
     
     def __init__(self):
@@ -29,6 +33,18 @@ class TestApp(EWrapper, EClient):
         super().contractDetails(reqId, contractDetails)
         print(f"reqID: {reqId}, contract: {contractDetails}")
 
+    def symbolSamples(self, reqId, contractDescriptions):
+        super().symbolSamples(reqId, contractDescriptions)
+        print("Symbol samples. Request ID: ", reqId)
+        for contractDescription in contractDescriptions:
+            derivSecTypes = ""
+            for derivSecType in contractDescription.derivativeSecTypes:
+                derivSecTypes += " "
+                derivSecTypes += derivSecType
+            print(f"Contract: {contractDescription.contract.conId}" +\
+                    f"Symbol: {contractDescription.contract.symbol}")
+
+
     def start(self):
         contract = Contract()
         contract.symbol = 'FUN'
@@ -44,6 +60,7 @@ class TestApp(EWrapper, EClient):
         order.lmtPrice = 1.11 
 
         self.reqContractDetails(1, contract)
+        self.reqMatchingSymbols(12, 'VRM')
 
     def stop(self):
         self.done = True
@@ -62,3 +79,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
