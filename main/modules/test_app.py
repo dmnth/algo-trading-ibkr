@@ -22,9 +22,13 @@ class TestApp(EWrapper, EClient):
                         + f'Msg: {errorString}'
         print(error_message)
 
+    # Provides next valid identifier needed to place an order
     def nextValidId(self, orderId):
-        self.nextOrderId = orderId
+        super().nextValidId(orderId)
+        logging.debug(f"Next valid ID is set to {orderId}")
+        self.nextValidOrderId = orderId
         self.start()
+        print(f"Next valid order ID: {orderId}")
 
     def contractDetails(self, reqId, contractDetails):
         """Receives the full contract's definitions. This method will return all
@@ -175,9 +179,21 @@ class TestApp(EWrapper, EClient):
         self.reqContractDetails(770, base_contract)
     # END FUTURES OPTIONS
 
+    # ORDERS
+
+    def create_limit_order(self, action, quantity, price):
+        order = Order()
+        order.orderType = 'LMT'
+        order.action = action
+        order.cashQty = quantity
+        order.lmtPrice = price
+
+        return order
+    # END ORDERS
+
     def start(self):
         contract = Contract()
-        contract.symbol = 'FUN'
+        contract.symbol = 'VRM'
         contract.secType = 'STK'
         contract.exchange = 'SMART'
         contract.currency = 'USD'
@@ -188,9 +204,14 @@ class TestApp(EWrapper, EClient):
         order.totalQuantity = 200
         order.orderType = 'LMT'
         order.lmtPrice = 1.11
+        order.eTradeOnly = False
+        order.firmQuoteOnly = False
 
-        self.reqContractDetails(1, contract)
-        self.reqMatchingSymbols(12, 'VRM')
+        #self.reqContractDetails(1, contract)
+        #self.reqMatchingSymbols(12, 'VRM')
+
+        # try to make an order here:
+        self.placeOrder(self.nextValidOrderId, contract, order)
 
         # FUTURES
       #  self.get_futures_local_symbol('BN', 'FUT', 'EUR', 'EUREX', 'BSNH DEC 23')
@@ -210,10 +231,10 @@ class TestApp(EWrapper, EClient):
    # FUTURES OPTIONS
 
         #self.get_futuresOptions('AZN', 'FOP', 'GBP', 'ICEEU')
-        self.get_futuresOptions_lastTrade_x_strike_x_Right_x_Multiplier('JET', 'OPT', 'GBP', 'ICEEU', '20270219', 15.4, 'C', '1000', 'JEK FEB27 15.4 C', '561577600')
-        self.get_futuresOptions_lastTrade_x_strike_x_Right_x_Multiplier('ET', 'PT', 'BP', 'IU', '20279', 5.4, 'C', '00', 'JEK FEB27 15.4 C', '561577600')
-        self.get_futuresOptions_by_conId('JET', 'OPT', 'GBP', 'ICEEU', '561577600')
-        self.get_futuresOptions_by_localSymbol('JET', 'OPT', 'GBP', 'ICEEU', 'JEK FEB27 15.4 C')
+        #self.get_futuresOptions_lastTrade_x_strike_x_Right_x_Multiplier('JET', 'OPT', 'GBP', 'ICEEU', '20270219', 15.4, 'C', '1000', 'JEK FEB27 15.4 C', '561577600')
+        #self.get_futuresOptions_lastTrade_x_strike_x_Right_x_Multiplier('ET', 'PT', 'BP', 'IU', '20279', 5.4, 'C', '00', 'JEK FEB27 15.4 C', '561577600')
+        #self.get_futuresOptions_by_conId('JET', 'OPT', 'GBP', 'ICEEU', '561577600')
+        #self.get_futuresOptions_by_localSymbol('JET', 'OPT', 'GBP', 'ICEEU', 'JEK FEB27 15.4 C')
         # self.get_futuresOptions_by_tradingClass('JET', 'OPT', 'GBP', 'ICEEU', 'JEK')
         # self.get_futuresOptions_by_tradingClass_x_right('JET', 'OPT', 'GBP', 'ICEEU', 'JEK', 'C')
         # self.get_futuresOptions_by_tradingClass_x_right_x_strike('JET', 'OPT', 'GBP', 'ICEEU', 'JEK', 'C', 15.4 )
@@ -237,4 +258,6 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
 
