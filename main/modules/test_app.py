@@ -10,6 +10,16 @@ from threading import Timer
 # and why is it present in docks but Contract class
 # has no attribute with this name.
 
+
+# eTradeOnly and firmQuoteOnly are no longer supported, so are set to False
+class baseOrder(Order):
+
+    def __init__(self):
+        Order.__init__((self))
+        self.eTradeOnly = False
+        self.firmQuoteOnly = False
+
+
 class TestApp(EWrapper, EClient):
 
     def __init__(self):
@@ -20,11 +30,12 @@ class TestApp(EWrapper, EClient):
         super().error(reqId, errorCode, errorString)
         error_message = f'Error id: {reqId}, Error code: {errorCode}, ' \
                         + f'Msg: {errorString}'
-        print(error_message)
 
     # Provides next valid identifier needed to place an order
+    # Indicates that the connection has been established and other messages can be sent from
+    # API to TWS
     def nextValidId(self, orderId):
-        super().nextValidId(orderId)
+        #super().nextValidId(orderId)
         logging.debug(f"Next valid ID is set to {orderId}")
         self.nextValidOrderId = orderId
         self.start()
@@ -188,10 +199,57 @@ class TestApp(EWrapper, EClient):
         order.cashQty = quantity
         order.lmtPrice = price
 
+    def create_auction_order(self, action, quantity, price):
+        order = baseOrder()
+        order.tif = "AUC"
+        order.orderType = "MTL"
+        order.action = action
+        order.totalQuantity = quantity
+        order.lmtPrice = price
+
         return order
+
+    def create_futures_contract(self, symbol, exchange, currency, localSymbol, mult, lastTrade):
+        contract = Contract()
+        contract.symbol = symbol
+        contract.secType = 'FUT'
+        contract.exchange = exchange
+        contract.currency = currency
+        contract.localSymbol = localSymbol
+        contract.multiplier = mult
+        contract.lastTradeDateOrContractMonth = lastTrade
+
+        self.reqContractDetails(3345, contract)
+
+        return contract
+
+    def create_futures_contract_conID(self, exchange, conID):
+        contract = Contract()
+        contract.exchange = exchange
+        contract.conId = conID
+
+        self.reqContractDetails(111111, contract)
+
+        return contract
+
+    def create_stock_contract(self, exchange, conId):
+        contract = Contract()
+        contract.secType = 'STK'
+        contract.exchange = exchange
+        contract.conId = conId
+
+        return contract
+
+    def place_auction_order(self, contract, order):
+        if contract.exchange not in ['BVME', 'IBIS', 'LSE', 'VSE', 'HKFE', 'TSE']:
+            print('Valid exchanges are BVME, IBIS, LSE, VSE, HKFE', 'TSE')
+            return
+        self.placeOrder(self.nextValidOrderId, contract, order)
+
     # END ORDERS
 
     def start(self):
+
         contract = Contract()
         contract.symbol = 'VRM'
         contract.secType = 'STK'
@@ -210,13 +268,24 @@ class TestApp(EWrapper, EClient):
         #self.reqContractDetails(1, contract)
         #self.reqMatchingSymbols(12, 'VRM')
 
+        print(self.isConnected())
         # try to make an order here:
-        self.placeOrder(self.nextValidOrderId, contract, order)
+        order = self.create_auction_order('BUY', 1, 1381)
+        contract = self.create_stock_contract('LSE', '41015940')
+        self.place_auction_order(contract, order)
 
+        order = self.create_auction_order('BUY', 2, 1382)
+        contract = self.create_stock_contract('LSE', '41015940')
+        self.place_auction_order(contract, order)
+
+        order = self.create_auction_order('BUY', 2, 1382)
+        contract = self.create_stock_contract('LSE', '41015940')
+        self.place_auction_order(contract, order)
+        #self.placeOrder(self.nextValidOrderId, contract, order)
         # FUTURES
       #  self.get_futures_local_symbol('BN', 'FUT', 'EUR', 'EUREX', 'BSNH DEC 23')
       #  self.get_futures_details_multiplier('BN', 'FUT', 'EUR', 'EUREX', '100')
-      #  self.get_futures_details_multiplier_x_local_symbol('BN', 'FUT', 'EUR', 'EUREX', 'BSNH DEC 23', '100')
+        #self.get_futures_details_multiplier_x_local_symbol('ZS', 'FUT', 'USD', 'ECBOT', 'ZS NOV 22', '5000')
       #  self.get_futures_details_last_day('BN', 'FUT', 'EUR', 'EUREX', '202312')
 
         # OPTIONS
@@ -240,6 +309,7 @@ class TestApp(EWrapper, EClient):
         # self.get_futuresOptions_by_tradingClass_x_right_x_strike('JET', 'OPT', 'GBP', 'ICEEU', 'JEK', 'C', 15.4 )
         # self.get_futuresOptions_by_tradingClass_x_right_x_multiplier('JET', 'OPT', 'GBP', 'ICEEU', 'JEK', 'C', '1000' )
 
+    # Should have create a base contract for every single instrument first.
 
     def stop(self):
         self.done = True
@@ -258,6 +328,5 @@ def main():
 
 if __name__ == '__main__':
     main()
-
 
 
