@@ -1,0 +1,35 @@
+TODO:
+
+-. Read Financial Instruments - Historical Market data inclusive.
+    - Orders
+    - Streaming market data
+    - Historical market data
+    - Place bracket order, or other complex order
+-. Try to launch Java testbed.
+i
+
+-. Place a bracket or other complex order.
++. Request Market depth for 6 random FX pairs.
+    -. Make a loop that goest through a list of 6 pairs and writes data to json, for example
+    -. User python's next() and an iterator.
++. For EUR.USD request data between 2018-2019, daily bars.
++. For EUR.USD get data for 20 years, starting from 2000, daily bars and TRADES, BIDASK and MIDPOINT.
++. Look for Facebook, IBM, IBKR and Amazon contracts and search it by ISIN.
+    +. Bonds can be issued by ISIN(instead of symbol)
+    +. Needs secIdType and secId if secType is not BOND
++. What does realtimebars return?
+    Single bar in real time every five seconds. Combine limitations of top and historical
+    market data.
+-. Exceed tickbytick limit of 3. How do you get 4 without quote boosters?
+    -. Equity and commissions. More lines -> more tickbytick for symbol. The greater the commision - more lines gets.
++. Is there a limit for TickByTickExt number of rows return?
+    min 3, max 60
+-. Can you request 5000 historical ticks?
+    -. Craft a request for 5000 historical ticks, make TWS suffer.
+-. Read documentation more carefully.
+-. Request Tick-By-Tick data
+    + BidAsk
+    - Last
+    - AllLast
+    - MidPoint
+    - AllLast
