@@ -1,14 +1,13 @@
 #! /usr/bin/env python3
 
-from ibapi.client import EClient
+import logging
+import datetime
+from threading import Timer
 from ibapi.wrapper import EWrapper
+from ibapi.client import EClient
 from ibapi.order import Order
 from ibapi.contract import Contract
-from threading import Timer
-
-#TODO: where contract.description gets assigned at 
-# and why is it present in docks but Contract class
-# has no attribute with this name.
+from ibapi.utils import floatToStr
 
 
 # eTradeOnly and firmQuoteOnly are no longer supported, so are set to False
@@ -25,6 +24,8 @@ class TestApp(EWrapper, EClient):
     def __init__(self):
         EWrapper.__init__(self)
         EClient.__init__(self, self)
+
+    # WRAPPERS HERE
 
     def error(self, reqId: int, errorCode: int, errorString: str):
         super().error(reqId, errorCode, errorString)
@@ -48,6 +49,10 @@ class TestApp(EWrapper, EClient):
         super().contractDetails(reqId, contractDetails)
         print(f"reqID: {reqId}, contract: {contractDetails}")
 
+    def bondContractDetails(self, reqId:int, contractDetails):
+        super(TestApp, self).bondContractDetails(reqId, contractDetails)
+        print(f"reqID: {reqId}, contract: {contractDetails}")
+    
     def symbolSamples(self, reqId, contractDescriptions):
         super().symbolSamples(reqId, contractDescriptions)
         print("Symbol samples. Request ID: ", reqId)
@@ -58,6 +63,74 @@ class TestApp(EWrapper, EClient):
                 derivSecTypes += derivSecType
             print(f"Contract: {contractDescription.contract.conId}" + \
                   f"Symbol: {contractDescription.contract.symbol}")
+
+    def tickPrice(self, reqId, tickType, price:float,
+                  attrib):
+        super().tickPrice(reqId, tickType, price, attrib)
+        print("TickPrice. TickeId: ", reqId, "tickType: ", tickType,
+              "Price: ", str(price), "CanAoutoExecute: ",
+              attrib.canAutoExecute, "PastLimit: ", attrib.pastLimit,
+              end=" ")
+
+    def mktDepthExchanges(self, depthMktDataDescriptions):
+        super().mktDepthExchanges(depthMktDataDescriptions)
+        print("Market Depth Exchanges available: ")
+        for desc in depthMktDataDescriptions:
+            print(desc)
+
+    def updateMktDepth(self, reqId , position:int, operation:int,
+                        side:int, price:float, size:int):
+        super().updateMktDepth(reqId, position, operation, side, price, size)
+        print("Update Market Depth\n ReqId: ", reqId, "Position: ", position, 'Operation: ',
+              operation, "Side: ", side, "Price: ", price, "Size: ", size)
+
+    def updateMktDepthL2(self, reqId, position:int, marketMaker:str,
+                          operation:int, side:int, price:float, size:int, isSmartDepth:bool):
+        super().updateMktDepthL2(reqId,position, marketMaker, operation, side, price, size, isSmartDepth)
+        print("Update Market Depth L2. ReqID: ", reqId, "Position: ", position, "MarketMarker: ", marketMaker,
+              "Operation: ", operation, "Side: ", side, "Price: ", price, "Size: ", size,
+              "isSmartDepth: ", isSmartDepth)
+
+    def historicalData(self, reqId: int, bar):
+        print("Historical data: ", reqId, "BarData: ", bar)
+
+    def tickByTickBidAsk(self, reqId: int, time: int, bidPrice: float, askPrice: float,
+                         bidSize: int, askSize: int, tickAttribBidAsk ):
+        super().tickByTickBidAsk(reqId, time, bidPrice, askPrice, bidSize, askSize, tickAttribBidAsk)
+        print('BidAsk. ReqId :', reqId,
+              "Time: ", datetime.datetime.fromtimestamp(time).strftime("%Y%m%d-%H:%M:%S"),
+              "BidPrice: ", floatToStr(bidPrice),
+              "AskPrice: ", floatToStr(askPrice),
+              "BidSize: ", bidSize,
+              "AskSize: ", askSize, "BidPastFlow: ", tickAttribBidAsk.bidPastLow,
+              "AskPastHigh: ", tickAttribBidAsk.askPastHigh
+            )
+
+    def historicalTicksBidAsk(self, reqId: int, ticks, done: bool):
+        super().historicalTicksBidAsk(reqId, ticks, done)
+        print("Historical Bid ask. ReqId: ", reqId,
+             "ticks: ", ticks, "done: ", done )
+
+    def tickByTickAllLast(self, reqId: int, tickType: int, time: int, price: float,
+                          size: int, tickAttribLast , exchange: str,
+                          specialConditions: str):
+        super().tickByTickAllLast(reqId, tickType, time, price, size, tickAttribLast, exchange,
+                                  specialConditions)
+        if tickType == 1:
+            print("Last.", end="")
+        else:
+            print("AllLast.", end="")
+            print("ReqId: ", reqId,
+                  "time: ", datetime.datetime.fromtimestamp(time).strftime("%Y%m%d-%H:%M:%S"),
+                  "price: ", price, "size", size, "exchange: ", exchange,
+                  "Spec COnd: ", specialConditions, "PastLimit: ", tickAttribLast.pastLimit,
+                  "Unreported: ", tickAttribLast.unreported)
+# END WRAPPERS
+
+    def connectionClosed(self):
+        # This function is called upon socket error or connection loss 
+        # between TWS and client script.
+        print("Connection closed because of reasons")
 
     def create_base_contact(self, symbol, sectype, currency, exchange):
 
@@ -246,70 +319,53 @@ class TestApp(EWrapper, EClient):
             return
         self.placeOrder(self.nextValidOrderId, contract, order)
 
-    # END ORDERS
+    def requestMarketData(self, reqID, contract, genericTickList, snapshot, regulatorySnapShot
+                          , mktDataOptions):
+        self.reqMktData(reqID, contract, genericTickList, snapshot, regulatorySnapShot, mktDataOptions)
+
+    def request_market_dpth_FX(self, currency1, currency2):
+        contract = self.create_base_contact(currency1, 'CASH', currency2, 'IDEALPRO')
+        self.reqMktDepth(self.nextValidOrderId, contract, 5, False, [])
+
+    def request_historical_2Y_2018_dayli(self):
+        contract = self.create_base_contact('EUR', 'CASH', 'USD', 'IDEALPRO')
+        queryTime = (datetime.datetime.today() - datetime.timedelta(days=180)).strftime("%Y%m%d-%H:%M:%S")
+        queryTime = "20191231-23:59:59"
+        self.reqHistoricalData(self.nextValidOrderId, contract, queryTime, "2 Y", "1 day", "MIDPOINT", 1, 1, False, [])
+
+    def request_historical_20Y_200_daily(self):
+        contract = self.create_base_contact('EUR', 'CASH', 'USD', 'IDEALPRO')
+        self.reqHistoricalData(self.nextValidOrderId, contract, "", "2 Y", "1 day", "BID_ASK", 1, 1, False, [])
+
+    def request_contract_details_ISIN(self):
+        contract = Contract()
+        contract.symbol = "AMZN"
+        contract.secIdType = "ISIN"
+        contract.secId = "US0231351067"
+        contract.secType = "STK"
+        contract.exchange = "SMART"
+        contract.currency = "USD"
+        self.reqContractDetails(self.nextValidOrderId, contract)
+        self.reqHistoricalData(self.nextValidOrderId, contract, "20221231-23:59:59", "1 Y",
+                               "1 day", "BID_ASK", 1, 1, False, [] )
+
 
     def start(self):
+        print(self.serverVersion())
+        contract = Contract()
+        contract.symbol = "AMZN"
+        contract.secType = "STK"
+        contract.exchange = "SMART"
+        contract.currency = "USD"
+        contract.secIdType = "ISIN"
+        contract.secId = "US0231351067"
 
         contract = Contract()
-        contract.symbol = 'VRM'
-        contract.secType = 'STK'
-        contract.exchange = 'SMART'
-        contract.currency = 'USD'
-        contract.primaryExchange = 'NASDAQ'
-
-        order = Order()
-        order.action = 'BUY'
-        order.totalQuantity = 200
-        order.orderType = 'LMT'
-        order.lmtPrice = 1.11
-        order.eTradeOnly = False
-        order.firmQuoteOnly = False
-
-        #self.reqContractDetails(1, contract)
-        #self.reqMatchingSymbols(12, 'VRM')
-
-        print(self.isConnected())
-        # try to make an order here:
-        order = self.create_auction_order('BUY', 1, 1381)
-        contract = self.create_stock_contract('LSE', '41015940')
-        self.place_auction_order(contract, order)
-
-        order = self.create_auction_order('BUY', 2, 1382)
-        contract = self.create_stock_contract('LSE', '41015940')
-        self.place_auction_order(contract, order)
-
-        order = self.create_auction_order('BUY', 2, 1382)
-        contract = self.create_stock_contract('LSE', '41015940')
-        self.place_auction_order(contract, order)
-        #self.placeOrder(self.nextValidOrderId, contract, order)
-        # FUTURES
-      #  self.get_futures_local_symbol('BN', 'FUT', 'EUR', 'EUREX', 'BSNH DEC 23')
-      #  self.get_futures_details_multiplier('BN', 'FUT', 'EUR', 'EUREX', '100')
-        #self.get_futures_details_multiplier_x_local_symbol('ZS', 'FUT', 'USD', 'ECBOT', 'ZS NOV 22', '5000')
-      #  self.get_futures_details_last_day('BN', 'FUT', 'EUR', 'EUREX', '202312')
-
-        # OPTIONS
-
-      #  self.get_options_details_multiplier('LHA', 'OPT', 'EUR', 'FTA', '140')
-      #  self.get_options_details_multiplier_x_lastTrade('LHA', 'OPT', 'EUR', 'FTA', '140', '202306')
-    #    self.get_options_details_multiplier_x_lastTrade_x_localSymbol('LHA', 'OPT', 'EUR', 'FTA', '140', '202306', 'LUQ C@4.28 JUN23')
-    #    self.get_options_details_multiplier_strike_expirationDate('LHA', 'OPT', 'EUR', 'FTA', '140', '4.28', '202306')
-    #   self.get_options_details_multiplier_strike_expirationDate_x_localSymbol('LHA', 'OPT', 'EUR', 'FTA', '140', '4.28', '202306', 'LUQ C@4.28 JUN23')
-    #  self.get_options_details_multiplier_strike_expirationDate_x_tradingClass('LHA', 'OPT', 'EUR', 'FTA', '140', '4.28', '202306', 'LUQ')
-
-   # FUTURES OPTIONS
-
-        #self.get_futuresOptions('AZN', 'FOP', 'GBP', 'ICEEU')
-        #self.get_futuresOptions_lastTrade_x_strike_x_Right_x_Multiplier('JET', 'OPT', 'GBP', 'ICEEU', '20270219', 15.4, 'C', '1000', 'JEK FEB27 15.4 C', '561577600')
-        #self.get_futuresOptions_lastTrade_x_strike_x_Right_x_Multiplier('ET', 'PT', 'BP', 'IU', '20279', 5.4, 'C', '00', 'JEK FEB27 15.4 C', '561577600')
-        #self.get_futuresOptions_by_conId('JET', 'OPT', 'GBP', 'ICEEU', '561577600')
-        #self.get_futuresOptions_by_localSymbol('JET', 'OPT', 'GBP', 'ICEEU', 'JEK FEB27 15.4 C')
-        # self.get_futuresOptions_by_tradingClass('JET', 'OPT', 'GBP', 'ICEEU', 'JEK')
-        # self.get_futuresOptions_by_tradingClass_x_right('JET', 'OPT', 'GBP', 'ICEEU', 'JEK', 'C')
-        # self.get_futuresOptions_by_tradingClass_x_right_x_strike('JET', 'OPT', 'GBP', 'ICEEU', 'JEK', 'C', 15.4 )
-        # self.get_futuresOptions_by_tradingClass_x_right_x_multiplier('JET', 'OPT', 'GBP', 'ICEEU', 'JEK', 'C', '1000' )
-
-    # Should have create a base contract for every single instrument first.
+        contract.symbol = "EUR"
+        contract.exchange = "IDEALPRO"
+        contract.secType = "CASH"
+        contract.currency = "USD"
+        self.reqTickByTickData(self.nextValidOrderId, contract, "AllLast", 0, True)
 
     def stop(self):
         self.done = True
@@ -328,5 +384,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
 
